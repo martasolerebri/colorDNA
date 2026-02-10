@@ -8,7 +8,6 @@ st.set_page_config(page_title="ColorDNA", page_icon="🎨", layout="centered")
 
 st.markdown("""
 <style>
-/* ---------- Global ---------- */
 .stApp {
     background: radial-gradient(1200px at 50% 0%, #1a1f2b 0%, #0e1117 40%);
     color: #f5f5f5;
@@ -21,7 +20,6 @@ st.markdown("""
 h1 { text-align: center; font-weight: 700; margin-bottom: 0.2em; }
 p { text-align: center; color: #b0b0b0; }
 
-/* ---------- Decoración Título ---------- */
 .title-gradient {
     text-align: center;
     font-size: 3rem;
@@ -38,7 +36,6 @@ p { text-align: center; color: #b0b0b0; }
     100% { background-position: 0% 50%; }
 }
 
-/* ---------- Componentes ---------- */
 section[data-testid="stFileUploader"] {
     background: rgba(255,255,255,0.03);
     border: 1px dashed rgba(255,255,255,0.15);
@@ -51,7 +48,6 @@ section[data-testid="stFileUploader"] {
     font-size: 0.75em;
 }
 
-/* ---------- ARREGLO: Caja de Respuesta IA ---------- */
 .ai-box {
     background: rgba(255, 255, 255, 0.05);
     padding: 25px;
@@ -60,7 +56,6 @@ section[data-testid="stFileUploader"] {
     margin-top: 20px;
     text-align: left !important; /* Forzamos a la izquierda */
 }
-/* Forzamos que los elementos DENTRO de la caja también vayan a la izquierda */
 .ai-box p, .ai-box h3, .ai-box li, .ai-box ul {
     text-align: left !important;
     color: #e0e0e0 !important; /* Texto un poco más claro para leer mejor */
@@ -75,13 +70,11 @@ with st.sidebar:
     api_key = st.text_input("Clave de API de Google GenAI", type="password")
 
 def get_image_data(img, size=(100, 100)):
-    """Redimensiona y obtiene píxeles sin usar Numpy explícitamente"""
     img_small = img.resize(size)
     img_small = img_small.convert('RGB')
     return list(img_small.getdata())
 
 def simple_kmeans(pixels, k=6, max_iterations=5):
-    """Implementación manual de K-Means ligera"""
     if not pixels:
         return [], []
     
@@ -123,7 +116,7 @@ def rgb_to_hex(rgb):
     return '#{:02x}{:02x}{:02x}'.format(rgb[0], rgb[1], rgb[2])
 
 st.markdown('<h1 class="title-gradient">ColorDNA</h1>', unsafe_allow_html=True)
-st.write("Análisis cromático & Consultoría IA.")
+st.write("Análisis cromático & IA.")
 
 uploaded_file = st.file_uploader("", type=["jpg", "png", "jpeg"])
 
@@ -201,8 +194,6 @@ if uploaded_file:
         if st.button("Analizar estilo con Gemini"):
             try:
                 client = genai.Client(api_key=api_key)
-                
-                # ARREGLO: Pedimos HTML en lugar de Markdown para evitar problemas dentro del div
                 prompt = f"""
                 Actúa como un experto en teoría del color.
                 Paleta: {', '.join(hex_colors)}.
@@ -225,7 +216,6 @@ if uploaded_file:
                         contents=[img, prompt]
                     )
                     
-                    # Limpieza por si la IA pone bloques de código
                     clean_text = response.text.replace("```html", "").replace("```", "")
                     
                     st.markdown(f'<div class="ai-box">{clean_text}</div>', unsafe_allow_html=True)
