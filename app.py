@@ -50,13 +50,23 @@ section[data-testid="stFileUploader"] {
     color: #666;
     font-size: 0.75em;
 }
-/* Estilo para la caja de respuesta IA */
+
+/* ---------- ARREGLO: Caja de Respuesta IA ---------- */
 .ai-box {
     background: rgba(255, 255, 255, 0.05);
-    padding: 20px;
+    padding: 25px;
     border-radius: 10px;
     border-left: 3px solid #7f7fd5;
     margin-top: 20px;
+    text-align: left !important; /* Forzamos a la izquierda */
+}
+/* Forzamos que los elementos DENTRO de la caja también vayan a la izquierda */
+.ai-box p, .ai-box h3, .ai-box li, .ai-box ul {
+    text-align: left !important;
+    color: #e0e0e0 !important; /* Texto un poco más claro para leer mejor */
+}
+.ai-box ul {
+    margin-left: 20px; /* Sangría para las listas */
 }
 </style>
 """, unsafe_allow_html=True)
@@ -192,16 +202,21 @@ if uploaded_file:
             try:
                 client = genai.Client(api_key=api_key)
                 
+                # ARREGLO: Pedimos HTML en lugar de Markdown para evitar problemas dentro del div
                 prompt = f"""
-                Actúa como un experto en teoría del color y diseño.
-                He extraído esta paleta de colores de la imagen adjunta: {', '.join(hex_colors)}.
+                Actúa como un experto en teoría del color.
+                Paleta: {', '.join(hex_colors)}.
                 
-                Por favor, dame un análisis breve y elegante en español que incluya:
-                1. Un nombre creativo para esta paleta.
-                2. El 'Vibe' o emociones que transmite.
-                3. Dos ideas concretas de dónde usarla (ej: decoración, web, moda).
+                Genera una respuesta SOLO en formato HTML (sin ```html, sin markdown).
+                Usa estas etiquetas para estructurar: <h3>, <p>, <b> (negrita), <ul>, <li>.
                 
-                Sé conciso, usa formato markdown y emojis. No uses introducciones largas.
+                Contenido:
+                1. <h3>Nombre creativo</h3>
+                2. <p><b>Vibe:</b> Descripción emocional.</p>
+                3. <p><b>Análisis:</b></p> <ul><li>Punto 1</li><li>Punto 2</li></ul>
+                4. <p><b>Usos:</b></p> <ul><li>Uso 1</li><li>Uso 2</li></ul>
+                
+                Sé conciso y elegante.
                 """
 
                 with st.spinner("Consultando al oráculo de colores..."):
@@ -210,7 +225,10 @@ if uploaded_file:
                         contents=[img, prompt]
                     )
                     
-                    st.markdown(f'<div class="ai-box">{response.text}</div>', unsafe_allow_html=True)
+                    # Limpieza por si la IA pone bloques de código
+                    clean_text = response.text.replace("```html", "").replace("```", "")
+                    
+                    st.markdown(f'<div class="ai-box">{clean_text}</div>', unsafe_allow_html=True)
             
             except Exception as e:
                 st.error(f"Error de conexión con la IA: {e}")
