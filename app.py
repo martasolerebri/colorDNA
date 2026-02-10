@@ -1,8 +1,9 @@
 import streamlit as st
 from PIL import Image
-import random
+import numpy as np
 from collections import Counter
-from google import genai 
+from google import genai
+from sklearn.cluster import KMeans
 
 st.set_page_config(page_title="ColorDNA", page_icon="🎨", layout="centered")
 
@@ -19,7 +20,6 @@ st.markdown("""
 }
 h1 { text-align: center; font-weight: 700; margin-bottom: 0.2em; }
 p { text-align: center; color: #b0b0b0; }
-
 .title-gradient {
     text-align: center;
     font-size: 3rem;
@@ -35,7 +35,22 @@ p { text-align: center; color: #b0b0b0; }
     50% { background-position: 100% 50%; }
     100% { background-position: 0% 50%; }
 }
-
+div[data-testid="stTextInput"] label {
+    color: #e0e0e0 !important;
+    font-size: 0.85em;
+}
+div[data-testid="stTextInput"] div[data-baseweb="input"] {
+    background-color: rgba(255, 255, 255, 0.05) !important;
+    border: none !important;
+    box-shadow: none !important;
+    border-radius: 12px !important;
+    color: white !important;
+}
+div[data-testid="stTextInput"] div[data-baseweb="input"]:focus-within {
+    box-shadow: none !important;
+    outline: none !important;
+    background-color: rgba(255, 255, 255, 0.08) !important;
+}
 section[data-testid="stFileUploader"] {
     background: rgba(255,255,255,0.03);
     border: 1px dashed rgba(255,255,255,0.15);
@@ -47,70 +62,47 @@ section[data-testid="stFileUploader"] {
     color: #666;
     font-size: 0.75em;
 }
-
 .ai-box {
     background: rgba(255, 255, 255, 0.05);
     padding: 25px;
     border-radius: 10px;
     border-left: 3px solid #7f7fd5;
     margin-top: 20px;
-    text-align: left !important; /* Forzamos a la izquierda */
+    text-align: left !important;
 }
 .ai-box p, .ai-box h3, .ai-box li, .ai-box ul {
     text-align: left !important;
-    color: #e0e0e0 !important; /* Texto un poco más claro para leer mejor */
+    color: #e0e0e0 !important;
 }
 .ai-box ul {
-    margin-left: 20px; /* Sangría para las listas */
+    margin-left: 20px;
 }
 </style>
 """, unsafe_allow_html=True)
 
 with st.sidebar:
+    st.markdown("### Configuración")
     api_key = st.text_input("Clave de API de Google GenAI", type="password")
 
-def get_image_data(img, size=(100, 100)):
-    img_small = img.resize(size)
-    img_small = img_small.convert('RGB')
-    return list(img_small.getdata())
-
-def simple_kmeans(pixels, k=6, max_iterations=5):
-    if not pixels:
-        return [], []
+def extract_colors(image, k=6):
+    image = image.resize((150, 150))
+    img_array = np.array(image)
+    pixels = img_array.reshape(-1, 3)
     
-    centroids = random.sample(pixels, k)
+    kmeans = KMeans(n_clusters=k, random_state=42, n_init=10)
+    kmeans.fit(pixels)
     
-    for _ in range(max_iterations):
-        clusters = [[] for _ in range(k)]
-        
-        for p in pixels:
-            distances = [
-                (p[0]-c[0])**2 + (p[1]-c[1])**2 + (p[2]-c[2])**2 
-                for c in centroids
-            ]
-            min_dist_index = distances.index(min(distances))
-            clusters[min_dist_index].append(p)
-            
-        new_centroids = []
-        for cluster in clusters:
-            if cluster:
-                r_mean = sum(p[0] for p in cluster) // len(cluster)
-                g_mean = sum(p[1] for p in cluster) // len(cluster)
-                b_mean = sum(p[2] for p in cluster) // len(cluster)
-                new_centroids.append((r_mean, g_mean, b_mean))
-            else:
-                new_centroids.append(random.choice(pixels))
-        
-        if new_centroids == centroids:
-            break
-        centroids = new_centroids
-        
-    labels = []
-    for p in pixels:
-        dists = [(p[0]-c[0])**2 + (p[1]-c[1])**2 + (p[2]-c[2])**2 for c in centroids]
-        labels.append(dists.index(min(dists)))
-        
-    return centroids, labels
+    colors = kmeans.cluster_centers_.astype(int)
+    labels = kmeans.labels_
+    
+    counts = Counter(labels)
+    total_pixels = len(pixels)
+    
+    sorted_indices = sorted(counts, key=counts.get, reverse=True)
+    sorted_colors = [tuple(colors[i]) for i in sorted_indices]
+    sorted_counts = [counts[i] for i in sorted_indices]
+    
+    return sorted_colors, sorted_counts, total_pixels
 
 def rgb_to_hex(rgb):
     return '#{:02x}{:02x}{:02x}'.format(rgb[0], rgb[1], rgb[2])
@@ -123,21 +115,12 @@ uploaded_file = st.file_uploader("", type=["jpg", "png", "jpeg"])
 if uploaded_file:
     img = Image.open(uploaded_file)
     
-    with st.spinner("Extrayendo ADN..."):
-        pixels = get_image_data(img, size=(75, 75)) 
-        
+    with st.spinner("Analizando espectro con ML..."):
         n_colors = 6
-        centroids, labels = simple_kmeans(pixels, k=n_colors)
+        centroids, counts, total_pixels = extract_colors(img, k=n_colors)
         
-        counts = Counter(labels)
-        total_pixels = len(pixels)
-        
-        sorted_indices = sorted(counts, key=counts.get, reverse=True)
-        sorted_centroids = [centroids[i] for i in sorted_indices]
-        sorted_counts = [counts[i] for i in sorted_indices]
-        
-        hex_colors = [rgb_to_hex(c) for c in sorted_centroids]
-        percentages = [(c / total_pixels) * 100 for c in sorted_counts]
+        hex_colors = [rgb_to_hex(c) for c in centroids]
+        percentages = [(c / total_pixels) * 100 for c in counts]
 
     st.image(img, use_container_width=True)
 
@@ -198,16 +181,16 @@ if uploaded_file:
                 Actúa como un experto en teoría del color.
                 Paleta: {', '.join(hex_colors)}.
                 
-                Genera una respuesta SOLO en formato HTML (sin ```html, sin markdown).
+                Genera una respuesta SOLO en formato HTML simple (sin bloque de código).
                 Usa estas etiquetas para estructurar: <h3>, <p>, <b> (negrita), <ul>, <li>.
                 
                 Contenido:
-                1. <h3>Nombre creativo</h3>
-                2. <p><b>Vibe:</b> Descripción emocional.</p>
-                3. <p><b>Análisis:</b></p> <ul><li>Punto 1</li><li>Punto 2</li></ul>
-                4. <p><b>Usos:</b></p> <ul><li>Uso 1</li><li>Uso 2</li></ul>
+                1. <h3>Nombre creativo para la paleta</h3>
+                2. <p><b>Vibe:</b> Descripción emocional corta.</p>
+                3. <p><b>Análisis:</b></p> <ul><li>Punto clave 1</li><li>Punto clave 2</li></ul>
+                4. <p><b>Usos recomendados:</b></p> <ul><li>Uso 1</li><li>Uso 2</li></ul>
                 
-                Sé conciso y elegante.
+                Sé conciso, poético y elegante.
                 """
 
                 with st.spinner("Consultando al oráculo de colores..."):
@@ -217,7 +200,6 @@ if uploaded_file:
                     )
                     
                     clean_text = response.text.replace("```html", "").replace("```", "")
-                    
                     st.markdown(f'<div class="ai-box">{clean_text}</div>', unsafe_allow_html=True)
             
             except Exception as e:
