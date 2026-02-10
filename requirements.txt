@@ -1,4 +1,5 @@
 streamlit
-Pillow
+pillow
+numpy
+scikit-learn
 google-genai
-sklearn
