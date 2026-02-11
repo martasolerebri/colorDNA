@@ -59,7 +59,6 @@ if uploaded_file:
     st.subheader("Chromatic Distribution")
 
     fig = go.Figure(data=[go.Pie(
-        labels=hexs,      
         labels=hex_colors,      
         values=quantities,
         marker=dict(colors=hex_colors),
@@ -84,7 +83,7 @@ if uploaded_file:
         
         try:
             client = genai.Client(api_key=api_key)
-            response = client.models.generate_content(
+            response = client.models.generate_content( 
                 model="gemini-2.0-flash",
                 contents=[img, prompt]
             )
