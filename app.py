@@ -6,7 +6,7 @@ from google import genai
 from sklearn.cluster import KMeans
 
 st.set_page_config(page_title="ColorDNA", page_icon="🎨", layout="centered")
-st.markdown(f"<style>{open('.\style.css').read()}</style>", unsafe_allow_html=True)
+st.markdown(f"<style>{open('style.css').read()}</style>", unsafe_allow_html=True)
 
 with st.sidebar:
     st.markdown("### Configuración")
