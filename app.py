@@ -6,213 +6,88 @@ from google import genai
 from sklearn.cluster import KMeans
 
 st.set_page_config(page_title="ColorDNA", page_icon="🎨", layout="centered")
-
-st.markdown("""
-<style>
-.stApp {
-    background: radial-gradient(1200px at 50% 0%, #1a1f2b 0%, #0e1117 40%);
-    color: #f5f5f5;
-    font-family: 'Inter', sans-serif;
-}
-.block-container {
-    max-width: 520px !important;
-    padding-top: 2.5rem;
-}
-h1 { text-align: center; font-weight: 700; margin-bottom: 0.2em; }
-p { text-align: center; color: #b0b0b0; }
-.title-gradient {
-    text-align: center;
-    font-size: 3rem;
-    font-weight: 800;
-    background: linear-gradient(120deg, #ff5f6d, #ffc371, #7f7fd5, #86fde8);
-    background-size: 300% 300%;
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    animation: gradientFlow 8s ease infinite;
-}
-@keyframes gradientFlow {
-    0% { background-position: 0% 50%; }
-    50% { background-position: 100% 50%; }
-    100% { background-position: 0% 50%; }
-}
-div[data-testid="stTextInput"] label {
-    color: #e0e0e0 !important;
-    font-size: 0.85em;
-}
-div[data-testid="stTextInput"] div[data-baseweb="input"] {
-    background-color: rgba(255, 255, 255, 0.05) !important;
-    border: none !important;
-    box-shadow: none !important;
-    border-radius: 12px !important;
-    color: white !important;
-}
-div[data-testid="stTextInput"] div[data-baseweb="input"]:focus-within {
-    box-shadow: none !important;
-    outline: none !important;
-    background-color: rgba(255, 255, 255, 0.08) !important;
-}
-section[data-testid="stFileUploader"] {
-    background: rgba(255,255,255,0.03);
-    border: 1px dashed rgba(255,255,255,0.15);
-    border-radius: 16px;
-}
-.footer {
-    text-align: center;
-    padding: 3rem 0 1rem 0;
-    color: #666;
-    font-size: 0.75em;
-}
-.ai-box {
-    background: rgba(255, 255, 255, 0.05);
-    padding: 25px;
-    border-radius: 10px;
-    border-left: 3px solid #7f7fd5;
-    margin-top: 20px;
-    text-align: left !important;
-}
-.ai-box p, .ai-box h3, .ai-box li, .ai-box ul {
-    text-align: left !important;
-    color: #e0e0e0 !important;
-}
-.ai-box ul {
-    margin-left: 20px;
-}
-</style>
-""", unsafe_allow_html=True)
+st.markdown(f"<style>{open('.\style.css').read()}</style>", unsafe_allow_html=True)
 
 with st.sidebar:
     st.markdown("### Configuración")
-    api_key = st.text_input("Clave de API de Google GenAI", type="password")
+    api_key = st.text_input("API Key de Google", type="password")
 
-def extract_colors(image, k=6):
-    image = image.resize((150, 150))
-    img_array = np.array(image)
-    pixels = img_array.reshape(-1, 3)
+def extraer_colores(imagen, num_colores=6):
+    img_pequeña = imagen.resize((150, 150))
+    pixeles = np.array(img_pequeña).reshape(-1, 3)
     
-    kmeans = KMeans(n_clusters=k, random_state=42, n_init=10)
-    kmeans.fit(pixels)
+    kmeans = KMeans(n_clusters=num_colores, random_state=42)
+    kmeans.fit(pixeles)
     
-    colors = kmeans.cluster_centers_.astype(int)
-    labels = kmeans.labels_
+    colores = kmeans.cluster_centers_.astype(int)
+    etiquetas = kmeans.labels_
+    conteo = Counter(etiquetas)
     
-    counts = Counter(labels)
-    total_pixels = len(pixels)
+    indices_ordenados = sorted(conteo, key=conteo.get, reverse=True)
+    colores_finales = [tuple(colores[i]) for i in indices_ordenados]
+    cantidades = [conteo[i] for i in indices_ordenados]
     
-    sorted_indices = sorted(counts, key=counts.get, reverse=True)
-    sorted_colors = [tuple(colors[i]) for i in sorted_indices]
-    sorted_counts = [counts[i] for i in sorted_indices]
-    
-    return sorted_colors, sorted_counts, total_pixels
+    return colores_finales, cantidades
 
-def rgb_to_hex(rgb):
+def rgb_a_hex(rgb):
     return '#{:02x}{:02x}{:02x}'.format(rgb[0], rgb[1], rgb[2])
 
 st.markdown('<h1 class="title-gradient">ColorDNA</h1>', unsafe_allow_html=True)
-st.write("Análisis cromático & IA.")
+st.write("Sube una imagen y analiza sus colores")
 
-uploaded_file = st.file_uploader("", type=["jpg", "png", "jpeg"])
+archivo = st.file_uploader("Selecciona una imagen", type=["jpg", "png", "jpeg"])
 
-if uploaded_file:
-    img = Image.open(uploaded_file)
-    
-    with st.spinner("Analizando espectro con ML..."):
-        n_colors = 6
-        centroids, counts, total_pixels = extract_colors(img, k=n_colors)
-        
-        hex_colors = [rgb_to_hex(c) for c in centroids]
-        percentages = [(c / total_pixels) * 100 for c in counts]
-
+if archivo:
+    img = Image.open(archivo)
     st.image(img, use_container_width=True)
-
-    st.markdown("<br>", unsafe_allow_html=True)
-    st.subheader("Paleta de Colores")
-
-    cols = st.columns(n_colors) 
-    for i, hex_c in enumerate(hex_colors):
-        if i < len(cols):
-            with cols[i]:
-                st.markdown(f"""
-                    <div style="background-color:{hex_c}; height: 50px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1);"></div>
-                    <p style="font-family:monospace; margin-top:5px; font-size: 0.7em; color: #888;">{hex_c.upper()}</p>
-                    """, unsafe_allow_html=True)
-
+    
+    colores, cantidades = extraer_colores(img)
+    total = sum(cantidades)
+    hexs = [rgb_a_hex(c) for c in colores]
+    porcentajes = [(cnt/total)*100 for cnt in cantidades]
+    
+    st.subheader("Paleta extraída")
+    cols = st.columns(6)
+    for i, hex_color in enumerate(hexs):
+        with cols[i]:
+            st.markdown(f'<div style="background:{hex_color}; height:60px; border-radius:8px;"></div>', 
+                       unsafe_allow_html=True)
+            st.caption(hex_color.upper())
+    
     st.divider()
-
-    st.subheader("Distribución Cromática")
+    st.subheader("Distribución")
     
-    gradient_parts = []
-    current_deg = 0
-    for color, pct in zip(hex_colors, percentages):
-        deg = (pct / 100) * 360
-        gradient_parts.append(f"{color} {current_deg}deg {current_deg + deg}deg")
-        current_deg += deg
+    grados_actual = 0
+    partes = []
+    for color, pct in zip(hexs, porcentajes):
+        grados = (pct/100) * 360
+        partes.append(f"{color} {grados_actual}deg {grados_actual+grados}deg")
+        grados_actual += grados
     
-    conic_gradient = ", ".join(gradient_parts)
-    
-    st.markdown(f"""
-        <div style="display: flex; justify-content: center; margin-top: 20px;">
-            <div style="
-                width: 200px; 
-                height: 200px; 
-                border-radius: 50%; 
-                background: conic-gradient({conic_gradient});
-                position: relative;
-                box-shadow: 0 10px 30px rgba(0,0,0,0.5);">
-                <div style="
-                    position: absolute; 
-                    top: 50%; left: 50%; 
-                    transform: translate(-50%, -50%); 
-                    width: 90px; height: 90px; 
-                    background: #151922; 
-                    border-radius: 50%;">
-                </div>
-            </div>
+    gradiente = ", ".join(partes)
+    st.markdown(f'''
+        <div style="width:200px; height:200px; margin:auto; border-radius:50%; 
+                    background:conic-gradient({gradiente}); box-shadow:0 5px 20px rgba(0,0,0,0.3);">
         </div>
-    """, unsafe_allow_html=True)
-
+    ''', unsafe_allow_html=True)
+    
     st.divider()
-    st.subheader("Interpretación IA")
-
-    if api_key:
-        if st.button("Analizar estilo con Gemini"):
-            try:
-                client = genai.Client(api_key=api_key)
-                prompt = f"""
-                Actúa como un experto en teoría del color.
-                Paleta: {', '.join(hex_colors)}.
-                
-                Genera una respuesta SOLO en formato HTML simple (sin bloque de código).
-                Usa estas etiquetas para estructurar: <h3>, <p>, <b> (negrita), <ul>, <li>.
-                
-                Contenido:
-                1. <h3>Nombre creativo para la paleta</h3>
-                2. <p><b>Vibe:</b> Descripción emocional corta.</p>
-                3. <p><b>Análisis:</b></p> <ul><li>Punto clave 1</li><li>Punto clave 2</li></ul>
-                4. <p><b>Usos recomendados:</b></p> <ul><li>Uso 1</li><li>Uso 2</li></ul>
-                
-                Sé conciso, poético y elegante.
-                """
-
-                with st.spinner("Consultando al oráculo de colores..."):
-                    response = client.models.generate_content(
-                        model="gemini-2.0-flash",
-                        contents=[img, prompt]
-                    )
-                    
-                    clean_text = response.text.replace("```html", "").replace("```", "")
-                    st.markdown(f'<div class="ai-box">{clean_text}</div>', unsafe_allow_html=True)
-            
-            except Exception as e:
-                st.error(f"Error de conexión con la IA: {e}")
-    else:
-        st.warning("Introduce tu API Key en la barra lateral para desbloquear la IA.")
+    
+    if api_key and st.button("Analizar con IA"):
+        prompt = f"Analiza esta paleta de colores {hexs}. Dame un nombre creativo, el vibe que transmite y para qué se podría usar. Responde en HTML simple con <h3>, <p> y <ul>."
+        
+        try:
+            client = genai.Client(api_key=api_key)
+            respuesta = client.models.generate_content(
+                model="gemini-2.0-flash",
+                contents=[img, prompt]
+            )
+            texto = respuesta.text.replace("```html", "").replace("```", "")
+            st.markdown(texto, unsafe_allow_html=True)
+        except Exception as e:
+            st.error(f"Error: {e}")
+    elif not api_key:
+        st.info("Añade tu API key para análisis con IA")
 
 else:
-    st.info("Sube una imagen para extraer su ADN.")
-
-st.markdown("""
-    <div class="footer">
-        <hr>
-        <p>© 2026 COLORDNA STUDIO • AI ENHANCED</p>
-    </div>
-    """, unsafe_allow_html=True)
+    st.info("Sube una imagen para empezar")
