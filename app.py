@@ -11,6 +11,7 @@ st.markdown(f"<style>{open('style.css').read()}</style>", unsafe_allow_html=True
 with st.sidebar:
     st.markdown("### Configuración")
     api_key = st.text_input("API Key de Google", type="password")
+    st.info("Get your key at [Google AI Studio](https://aistudio.google.com/)")
 
 def extraer_colores(imagen, num_colores=6):
     img_pequeña = imagen.resize((150, 150))
