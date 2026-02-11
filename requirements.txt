@@ -1,6 +1,5 @@
 streamlit
 pillow
 numpy
-collections
 scikit-learn
 google-genai
