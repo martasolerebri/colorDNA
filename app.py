@@ -14,43 +14,42 @@ with st.sidebar:
     api_key = st.text_input("Google API Key", type="password")
     st.info("Get your key at [Google AI Studio](https://aistudio.google.com/)")
 
-def extraer_colores(imagen, num_colores=6):
-    img_pequeña = imagen.resize((150, 150))
-    pixeles = np.array(img_pequeña).reshape(-1, 3)
+def extract_colors(image, num_colors=6):
+    small_image = image.resize((150, 150))
+    pixels = np.array(small_image).reshape(-1, 3)
     
-    kmeans = KMeans(n_clusters=num_colores, random_state=42)
-    kmeans.fit(pixeles)
+    kmeans = KMeans(n_clusters=num_colors, random_state=42)
+    kmeans.fit(pixels)
     
-    colores = kmeans.cluster_centers_.astype(int)
-    etiquetas = kmeans.labels_
-    conteo = Counter(etiquetas)
+    colors = kmeans.cluster_centers_.astype(int)
+    labels = kmeans.labels_
+    counts = Counter(labels)
     
-    indices_ordenados = sorted(conteo, key=conteo.get, reverse=True)
-    colores_finales = [tuple(colores[i]) for i in indices_ordenados]
-    cantidades = [conteo[i] for i in indices_ordenados]
+    sorted_indices = sorted(counts, key=counts.get, reverse=True)
+    final_colors = [tuple(colors[i]) for i in sorted_indices]
+    quantities = [counts[i] for i in sorted_indices]
     
-    return colores_finales, cantidades
+    return final_colors, quantities
 
-def rgb_a_hex(rgb):
+def rgb_to_hex(rgb):
     return '#{:02x}{:02x}{:02x}'.format(rgb[0], rgb[1], rgb[2])
 
 st.markdown('<h1 class="title-gradient">ColorDNA</h1>', unsafe_allow_html=True)
 st.write("Upload an image and analyze its colors")
 
-archivo = st.file_uploader("Select an image", type=["jpg", "png", "jpeg"])
+uploaded_file = st.file_uploader("Select an image", type=["jpg", "png", "jpeg"])
 
-if archivo:
-    img = Image.open(archivo)
+if uploaded_file:
+    img = Image.open(uploaded_file)
     st.image(img, use_container_width=True)
     
-    colores, cantidades = extraer_colores(img)
-    total = sum(cantidades)
-    hexs = [rgb_a_hex(c) for c in colores]
-    porcentajes = [(cnt/total)*100 for cnt in cantidades]
+    colors, quantities = extract_colors(img)
+    total = sum(quantities)
+    hex_colors = [rgb_to_hex(c) for c in colors]
     
     st.subheader("Extracted Palette")
     cols = st.columns(6)
-    for i, hex_color in enumerate(hexs):
+    for i, hex_color in enumerate(hex_colors):
         with cols[i]:
             st.markdown(f'<div style="background:{hex_color}; height:60px; border-radius:8px;"></div>', 
                        unsafe_allow_html=True)
@@ -61,8 +60,9 @@ if archivo:
 
     fig = go.Figure(data=[go.Pie(
         labels=hexs,      
-        values=cantidades,
-        marker=dict(colors=hexs),
+        labels=hex_colors,      
+        values=quantities,
+        marker=dict(colors=hex_colors),
         hoverinfo="label+percent", 
         textinfo="none"         
     )])
@@ -80,16 +80,16 @@ if archivo:
     st.divider()
     
     if api_key and st.button("Analyze with AI"):
-        prompt = f"Analyze this color palette {hexs}. Give me a creative name, the vibe it conveys, and what it could be used for. Respond in simple HTML with <h3>, <p> and <ul>."
+        prompt = f"Analyze this color palette {hex_colors} as if you were Miranda in the movie The Devil Wears Prada. Give me a creative name and the vibe it conveys. Respond in simple HTML with <h3>, <p> and <ul>."
         
         try:
             client = genai.Client(api_key=api_key)
-            respuesta = client.models.generate_content(
+            response = client.models.generate_content(
                 model="gemini-2.0-flash",
                 contents=[img, prompt]
             )
-            texto = respuesta.text.replace("```html", "").replace("```", "")
-            st.markdown(texto, unsafe_allow_html=True)
+            response_text = response.text.replace("```html", "").replace("```", "")
+            st.markdown(response_text, unsafe_allow_html=True)
         except Exception as e:
             st.error(f"Error: {e}")
     elif not api_key:
