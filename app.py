@@ -1,16 +1,17 @@
-import streamlit as st
-from PIL import Image
 import numpy as np
-from collections import Counter
+from PIL import Image
+import streamlit as st
 from google import genai
+from collections import Counter
+import plotly.graph_objects as go 
 from sklearn.cluster import KMeans
 
 st.set_page_config(page_title="ColorDNA", page_icon="🎨", layout="centered")
 st.markdown(f"<style>{open('style.css').read()}</style>", unsafe_allow_html=True)
 
 with st.sidebar:
-    st.markdown("### Configuración")
-    api_key = st.text_input("API Key de Google", type="password")
+    st.markdown("### Settings")
+    api_key = st.text_input("Google API Key", type="password")
     st.info("Get your key at [Google AI Studio](https://aistudio.google.com/)")
 
 def extraer_colores(imagen, num_colores=6):
@@ -34,9 +35,9 @@ def rgb_a_hex(rgb):
     return '#{:02x}{:02x}{:02x}'.format(rgb[0], rgb[1], rgb[2])
 
 st.markdown('<h1 class="title-gradient">ColorDNA</h1>', unsafe_allow_html=True)
-st.write("Sube una imagen y analiza sus colores")
+st.write("Upload an image and analyze its colors")
 
-archivo = st.file_uploader("Selecciona una imagen", type=["jpg", "png", "jpeg"])
+archivo = st.file_uploader("Select an image", type=["jpg", "png", "jpeg"])
 
 if archivo:
     img = Image.open(archivo)
@@ -47,7 +48,7 @@ if archivo:
     hexs = [rgb_a_hex(c) for c in colores]
     porcentajes = [(cnt/total)*100 for cnt in cantidades]
     
-    st.subheader("Paleta extraída")
+    st.subheader("Extracted Palette")
     cols = st.columns(6)
     for i, hex_color in enumerate(hexs):
         with cols[i]:
@@ -56,26 +57,30 @@ if archivo:
             st.caption(hex_color.upper())
     
     st.divider()
-    st.subheader("Distribución")
-    
-    grados_actual = 0
-    partes = []
-    for color, pct in zip(hexs, porcentajes):
-        grados = (pct/100) * 360
-        partes.append(f"{color} {grados_actual}deg {grados_actual+grados}deg")
-        grados_actual += grados
-    
-    gradiente = ", ".join(partes)
-    st.markdown(f'''
-        <div style="width:200px; height:200px; margin:auto; border-radius:50%; 
-                    background:conic-gradient({gradiente}); box-shadow:0 5px 20px rgba(0,0,0,0.3);">
-        </div>
-    ''', unsafe_allow_html=True)
+    st.subheader("Chromatic Distribution")
+
+    fig = go.Figure(data=[go.Pie(
+        labels=hexs,      
+        values=cantidades,
+        marker=dict(colors=hexs),
+        hoverinfo="label+percent", 
+        textinfo="none"         
+    )])
+
+    fig.update_layout(
+        showlegend=False,
+        paper_bgcolor='rgba(0,0,0,0)',
+        plot_bgcolor='rgba(0,0,0,0)',
+        margin=dict(t=0, b=0, l=0, r=0),
+        height=250,
+    )
+
+    st.plotly_chart(fig, use_container_width=True)
     
     st.divider()
     
-    if api_key and st.button("Analizar con IA"):
-        prompt = f"Analiza esta paleta de colores {hexs}. Dame un nombre creativo, el vibe que transmite y para qué se podría usar. Responde en HTML simple con <h3>, <p> y <ul>."
+    if api_key and st.button("Analyze with AI"):
+        prompt = f"Analyze this color palette {hexs}. Give me a creative name, the vibe it conveys, and what it could be used for. Respond in simple HTML with <h3>, <p> and <ul>."
         
         try:
             client = genai.Client(api_key=api_key)
@@ -88,7 +93,7 @@ if archivo:
         except Exception as e:
             st.error(f"Error: {e}")
     elif not api_key:
-        st.info("Añade tu API key para análisis con IA")
+        st.info("Add your API key for AI analysis")
 
 else:
-    st.info("Sube una imagen para empezar")
+    st.info("Upload an image to get started")
